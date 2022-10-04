@@ -324,9 +324,9 @@ scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/
   filter(!is.na(Campus)) %>%
   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
 
-# scheduling_data_raw <- as.data.frame(readRDS(file.choose())) %>%
-#   filter(!is.na(Campus)) %>%
-#   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
+scheduling_data_raw <- as.data.frame(readRDS(file.choose())) %>%
+  filter(!is.na(Campus)) %>%
+  filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
 
 start_date <- "2022-01-01"
 end_date <- "2022-08-31"
@@ -665,6 +665,38 @@ dow_vol_summary_merged <- bind_rows(dow_vol_summary, dow_vol_summary_mshs)
       )
     ) # Close Columns
   ) # Close Reactable
+
+```
+
+## Click below button to copy/download table above:
+```{r Download Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+datatable(
+   dow_vol_summary_merged %>% 
+     dplyr::select(-c("blank","blank2")) %>%
+     `colnames<-`(c("Site", "Mon Total Volume", "Tue Total Volume", "Wed Total Volume","Thu Total Volume","Fri Total Volume",
+                    "Mon Avg Volume/Day", "Tue Avg Volume/Day", "Wed Avg Volume/Day","Thu Avg Volume/Day","Fri Avg Volume/Day",
+                    "Mon Var from Daily Avg/Week", "Tue Var from Daily Avg/Week", "Wed Var from Daily Avg/Week",
+                    "Thu Var from Daily Avg/Week","Fri Var from Daily Avg/Week")),
+   extensions = 'Buttons', options = list(
+     initComplete = JS(
+                            "function(settings, json) {",
+                            "$(this.api().table().header()).css({'color': '#fff'});",
+                            "}"),
+     ordering=F,
+     dom = 'B',
+     buttons = list(
+       c('copy', 'excel')
+     ),
+     deferRender = FALSE,
+    lengthMenu = list(c(0, 1,-1), c('0', '1', 'All')),
+    searching = FALSE,
+    editable = FALSE,
+    scroller = FALSE,
+    lengthChange = FALSE
+   )
+ ) 
+
 
 ```
 
