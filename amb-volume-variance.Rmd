@@ -428,7 +428,7 @@ arrived_var_mshs <- arrived_calculation_mshs %>%
 ```
 
 
-```{r Sinai Logo, echo=FALSE, out.width = '30%'}
+```{r Sinai Logo, echo=FALSE, out.width = '15%'}
 knitr::include_graphics("Mount_Sinai_Logo_H.png")
 ```
 
