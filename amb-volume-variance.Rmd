@@ -1,0 +1,671 @@
+---
+title: "ambulatory-volume-variance"
+output: html_document
+date: '2022-10-04'
+---
+<style type="text/css">
+div.main-container {
+  max-width: 1600px;
+  margin-left: 50px;
+  margin-right: 50px;
+}
+</style>
+
+<style>
+.tocify {
+color: black;
+max-width: 400px;
+margin-right: -50px;
+}
+.tocify .tocify-header {
+    position: fixed;
+    <!-- top: 50px; -->
+    margin-right: 0px;
+    <!-- right: -50px; -->
+    width: 350px;
+    border: solid 3px black;
+    height: 200px;
+ border: none;
+}
+.tocify .tocify-header .active {
+color: white;
+background: #d80b8c;
+font-weight: bold;
+}
+<!-- .tocify .tocify-item { -->
+<!-- background: white; -->
+<!-- color: black; -->
+<!--  border: none; -->
+<!-- } -->
+</style>
+
+
+<style>
+  .nav-pills>li>a:hover, .nav-pills>li>a:focus, .nav-pills>li.active>a,     .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus{
+     background-color: #212070;
+     }
+</style>
+
+
+<style>
+.container { width: 1800px; }
+h2 {
+  background-color: #dddedd;
+  color: black;
+  text-indent: 20px;
+  <!-- font-weight: bold; -->
+}
+h3 {
+  background-color: #f2f2f2;
+  color: black;
+  text-indent: 20px;
+  <!-- font-weight: bold; -->
+}
+h4 {
+  <!-- background-color: #dddedd; -->
+  <!-- color: black; -->
+  text-indent: 50px;
+  <!-- font-weight: bold; -->
+}
+</style>
+
+
+<style>
+.blackbox {
+  padding: 1em;
+  background: white;
+  color: black;
+  border: 2px solid #7f7f7f;
+  width: 100%;
+  position: center;
+  align: center;
+  margin: 0px auto;
+}
+.center {
+  text-align: left;
+  margin: 0px auto;
+}
+</style>
+
+<style>
+.my_div_class {
+  color: black;     
+  font-size: 12px; 
+  font-style: italic;
+}
+</style>
+<!-- ```{css toc-content, echo = FALSE} -->
+<!-- #TOC { -->
+<!--   right: 0px; -->
+<!--   margin: 20px -50px 25px 0px; -->
+<!-- } -->
+
+<!-- .main-container { -->
+<!--     margin-left: 0px; -->
+<!-- } -->
+<!-- ``` -->
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+```{r Load Packages, echo = FALSE, warning = FALSE, message = FALSE}
+
+# # Load packages -----------------------------------------------------------------------------------
+suppressMessages({
+  memory.limit(size = 8000000)
+  library(readxl)
+  library(writexl)
+  library(plyr)
+  library(dplyr)
+  library(data.table)
+  library(zoo)
+  library(shiny)
+  library(shinydashboard)
+  library(shinydashboardPlus)
+  library(shinyWidgets)
+  library(htmlwidgets)
+  library(lubridate)
+  library(tcltk)
+  library(tidyverse)
+  library(plotly)
+  library(knitr)
+  library(kableExtra)
+  library(leaflet)
+  library(grid)
+  library(gridExtra)
+  library(eeptools)
+  library(ggQC)
+  library(zipcodeR)
+  library(utils)
+  library(scales)
+  library(chron)
+  library(bupaR)
+  library(shiny)
+  library(DT)
+  library(DiagrammeR)
+  library(shinyalert)
+  library(edeaR)
+  library(processmapR)
+  library(processmonitR)
+  library(processanimateR)
+  library(tidyr)
+  library(lubridate)
+  library(RColorBrewer)
+  library(DiagrammeR)
+  library(ggplot2)
+  library(leaflet)
+  library(readr)
+  library(highcharter)
+  library(ggforce) # for 'geom_arc_bar'
+  library(packcircles) # for packed circle graph
+  library(viridis)
+  library(ggiraph)
+  library(treemapify)
+  library(treemap)
+  library(broom)
+  library(extrafont)
+  library(tis) # for US holidays
+  library(vroom)
+  library(sjmisc)
+  library(tools)
+  library(here)
+  library(shinyBS)
+  library(shinyscreenshot)
+  library(fasttime)
+  library(shinycssloaders)
+  library(feather)
+  # library(zipcodeR)
+  library(formattable)
+  library(shinyjs)
+  library(janitor)
+  library(patchwork)
+  library(flexdashboard)
+  # library(tidyverse)
+  # library(viridis)
+  # library(hrbrthemes)
+  # library(plotly)
+  # install.packages("bsts")
+  library(bsts)
+  library(reactable)
+  # install.packages("reactablefmtr")
+  library(reactablefmtr)
+  library(svDialogs)
+  library(openxlsx)
+  library(flextable)
+  library(officedown)
+  library(officer)
+  library(magrittr)
+  library(webshot) 
+  library(png)
+  library(ggh4x)
+  library(RODBC)
+  library(DBI)
+  library(odbc)
+})
+
+```
+
+
+```{r Graph asthetics, echo = FALSE, warning = FALSE, message = FALSE}
+### Color Functions for Graphs ============================================================
+
+# Mount Sinai corporate colors "USE THIS TO ADD COLORS"
+MountSinai_colors <- c(
+  `dark purple`  = "#212070",
+  `dark pink`    = "#d80b8c",
+  `dark blue`    = "#00aeef",
+  `dark grey`    = "#7f7f7f",
+  `yellow`       = "#ffc000",
+  `purple`       = "#7030a0",
+  `med purple`   = "#5753d0",
+  `med pink`     = "#f75dbe",
+  `med blue`     = "#5cd3ff",
+  `med grey`     = "#a5a7a5",
+  `light purple` = "#c7c6ef",
+  `light pink`   = "#fcc9e9",
+  `light blue`   = "#c9f0ff",
+  `light grey`   = "#dddedd"
+  )
+
+# Function to extract Mount Sinai colors as hex codes
+# Use Character names of MountSinai_colors
+
+MountSinai_cols <- function(...) {
+  cols <- c(...)
+  
+  if (is.null(cols))
+    return (MountSinai_colors)
+  
+  MountSinai_colors[cols]
+}
+
+# Color Function that can be used to call all colors is "MountSinai_cols()"
+# Use in ggplot 
+
+  #MountSinai_cols()       # will provide all colors and their hex codes in a table 
+  #MountSinai_cols("pink") # will provide color name and the hex code for the pink color
+
+# Create palettes 
+MountSinai_palettes <- list(
+  `all`   = MountSinai_cols("dark purple","dark pink","dark blue","dark grey",
+                            "med purple","med pink","med blue","med grey", 
+                            "light purple","light pink","light blue","light grey"),
+  
+  `main`  = MountSinai_cols("dark purple","dark pink","dark blue","dark grey"),
+  
+  `purple`  = MountSinai_cols("dark purple","med purple","light purple"),
+  
+  `pink`  = MountSinai_cols("dark pink","med pink","light pink"),
+  
+  `blue`  = MountSinai_cols("dark blue", "med blue", "light blue"),
+  
+  `grey`  = MountSinai_cols("dark grey", "med grey", "light grey"),
+  
+  `purpleGrey` = MountSinai_cols("dark purple", "dark grey"),
+  
+  `pinkBlue` = MountSinai_cols("dark pink", "dark blue")
+  
+)
+
+# MountSinai_palettes
+# Return function to interpolate a Mount Sinai color palette
+# default value is the main palette, reverse = True will change the order
+
+MountSinai_pal <- function(palette = "all", reverse = FALSE, ...) {
+  pal <- MountSinai_palettes[[palette]]
+  
+  if (reverse) pal <- rev(pal)
+  
+  colorRampPalette(pal, ...)
+}
+
+
+
+# Scale Function for ggplot can be used instead of scale_color_manual
+scale_color_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- MountSinai_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("colour", paste0("MountSinai_", palette), palette = pal, ...)
+  } else {
+    scale_color_gradientn(colours = pal(256), ...)
+  }
+}
+
+# Scale Fill for ggplot insetead of scale_fill_manual 
+scale_fill_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- MountSinai_pal(palette = palette, reverse = reverse)
+
+  if (discrete) {
+    discrete_scale("fill", paste0("MountSinai_", palette), palette = pal, ...)
+  } else {
+    scale_fill_gradientn(colours = pal(256), ...)
+  }
+}
+
+# Use in ggplot 
+  # scale_color_MountSinai("main")
+
+```
+
+
+```{r Global Functions, echo = FALSE, warning = FALSE, message = FALSE}
+
+'%!in%' <- function(x,y)!('%in%'(x,y)) # Does not include
+not_all_na <- function(x) all(!is.na(x)) # Exclude columns with All NAs
+
+```
+
+
+```{r Import Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/Data_Updated/historical_data.rds")) %>%
+  filter(!is.na(Campus)) %>%
+  filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
+
+# scheduling_data_raw <- as.data.frame(readRDS(file.choose())) %>%
+#   filter(!is.na(Campus)) %>%
+#   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
+
+start_date <- "2022-01-01"
+end_date <- "2022-08-31"
+
+scheduling_data_raw <- scheduling_data_raw %>%
+  filter(Appt.DateYear >= as.Date(start_date) & Appt.DateYear <= as.Date(end_date))
+
+```
+
+
+```{r Volume Variance Calculation, echo = FALSE, warning = FALSE, message = FALSE}
+
+# By Site
+arrived_total <- scheduling_data_raw %>%
+  filter(Appt.Status == "Arrived") %>%
+  filter(Appt.Day %!in% c("Sat","Sun")) %>%
+  group_by(Campus, Appt.Day) %>%
+  summarise(total_vol = n()) %>%
+  mutate(Appt.Day = paste0(Appt.Day,"_total")) %>%
+  pivot_wider(names_from = Appt.Day,
+              values_from = total_vol,
+              values_fill = 0) %>%
+  dplyr::select(Campus, Mon_total, Tue_total, Wed_total, Thu_total, Fri_total) %>%
+  mutate(blank = "")
+
+arrived_calculation <- scheduling_data_raw %>%
+  filter(Appt.Status == "Arrived") %>%
+  filter(Appt.Day %!in% c("Sat","Sun")) %>%
+  group_by(Campus, Appt.DateYear, Appt.Day) %>%
+  summarise(avg_vol = n()) %>%
+  group_by(Campus, Appt.Day) %>%
+  summarise(avg_vol = mean(avg_vol)) %>%
+  group_by(Campus) %>%
+  mutate(daily_var = round((avg_vol-(mean(avg_vol)))/(mean(avg_vol)),2))
+
+arrived_avg <- arrived_calculation %>%
+  dplyr::select(Campus, Appt.Day, avg_vol) %>%
+  mutate(Appt.Day = paste0(Appt.Day,"_avg"),
+         avg_vol = round(avg_vol)) %>%
+  pivot_wider(names_from = Appt.Day,
+              values_from = avg_vol,
+              values_fill = 0) %>%
+  dplyr::select(Campus, Mon_avg, Tue_avg, Wed_avg, Thu_avg, Fri_avg) %>%
+  mutate(blank2 = "")
+
+arrived_var <- arrived_calculation %>%
+  dplyr::select(Campus, Appt.Day, daily_var) %>%
+  mutate(Appt.Day = paste0(Appt.Day,"_var")) %>%
+  pivot_wider(names_from = Appt.Day,
+              values_from = daily_var,
+              values_fill = 0) %>%
+  dplyr::select(Campus, Mon_var, Tue_var, Wed_var, Thu_var, Fri_var)
+
+# Total MSHS
+arrived_total_mshs <- scheduling_data_raw %>%
+  filter(Appt.Status == "Arrived") %>%
+  filter(Appt.Day %!in% c("Sat","Sun")) %>%
+  mutate(Campus = "MSHS Total") %>%
+  group_by(Campus, Appt.Day) %>%
+  summarise(total_vol = n()) %>%
+  mutate(Appt.Day = paste0(Appt.Day,"_total")) %>%
+  pivot_wider(names_from = Appt.Day,
+              values_from = total_vol,
+              values_fill = 0) %>%
+  dplyr::select(Campus, Mon_total, Tue_total, Wed_total, Thu_total, Fri_total) %>%
+  mutate(blank = "")
+
+arrived_calculation_mshs <- scheduling_data_raw %>%
+  filter(Appt.Status == "Arrived") %>%
+  filter(Appt.Day %!in% c("Sat","Sun")) %>%
+  mutate(Campus = "MSHS Total") %>%
+  group_by(Campus, Appt.DateYear, Appt.Day) %>%
+  summarise(avg_vol = n()) %>%
+  group_by(Campus, Appt.Day) %>%
+  summarise(avg_vol = mean(avg_vol)) %>%
+  group_by(Campus) %>%
+  mutate(daily_var = round((avg_vol-(mean(avg_vol)))/(mean(avg_vol)),2))
+
+arrived_avg_mshs <- arrived_calculation_mshs %>%
+  dplyr::select(Campus, Appt.Day, avg_vol) %>%
+  mutate(Appt.Day = paste0(Appt.Day,"_avg"),
+         avg_vol = round(avg_vol)) %>%
+  pivot_wider(names_from = Appt.Day,
+              values_from = avg_vol,
+              values_fill = 0) %>%
+  dplyr::select(Campus, Mon_avg, Tue_avg, Wed_avg, Thu_avg, Fri_avg) %>%
+  mutate(blank2 = "")
+
+arrived_var_mshs <- arrived_calculation_mshs %>%
+  dplyr::select(Campus, Appt.Day, daily_var) %>%
+  mutate(Appt.Day = paste0(Appt.Day,"_var")) %>%
+  pivot_wider(names_from = Appt.Day,
+              values_from = daily_var,
+              values_fill = 0) %>%
+  dplyr::select(Campus, Mon_var, Tue_var, Wed_var, Thu_var, Fri_var)
+
+
+```
+
+
+```{r Sinai Logo, echo=FALSE, out.width = '30%'}
+knitr::include_graphics("Mount_Sinai_Logo_H.png")
+```
+
+# Ambulatory Volume Variance by Day of Week 
+*Report run date: `r report_run_date`*<br/>
+*Excludes Rad Onc and Radiology data*<br/>
+*Excludes eIDX, MD Office data.*<br/>
+
+```{r Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+dow_vol_summary <- merge(arrived_total, arrived_avg)
+dow_vol_summary <- merge(dow_vol_summary, arrived_var)
+
+dow_vol_summary_mshs <- merge(arrived_total_mshs, arrived_avg_mshs)
+dow_vol_summary_mshs <- merge(dow_vol_summary_mshs, arrived_var_mshs)
+
+dow_vol_summary_merged <- bind_rows(dow_vol_summary, dow_vol_summary_mshs)
+
+# Table Output 
+  reactable(
+    dow_vol_summary_merged,
+    # groupBy = c("Campus","Campus.Specialty"),
+    # defaultPageSize = 5,
+    # elementId = "site-grouping-table",
+    style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "center", 
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),  
+    rowStyle = function(index) {
+            if (index %in% c(10)) {
+              list(`border-top` = "2px solid rgb(184,184,184)",
+                   fontWeight = "Bold")
+            }
+          },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+    # bordered = TRUE,
+     # rowStyle = function(index) {
+     #        if (index %in% as.vector(col_border_num$total)) {
+     #          list(`border-bottom` = "thin solid")
+     #        }
+     #      },
+    columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Total Volume"), 
+             columns = c("Mon_total", "Tue_total", "Wed_total", "Thu_total", "Fri_total"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Avg Volume per Day"), 
+             columns = c("Mon_avg", "Tue_avg", "Wed_avg", "Thu_avg", "Fri_avg"),
+             headerStyle = list(color = "#7f7f7f", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Variance from Daily Avg per Week"), 
+             columns = c("Mon_var", "Tue_var", "Wed_var", "Thu_var", "Fri_var"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+    columns = list(
+      Campus = colDef(
+        name = "Site",
+        minWidth = 200,
+        headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
+        style = list(fontWeight = "Bold"),
+        align = "left"
+        # footer = "*Excludes MSDD and NETWORK"
+        ),
+      Mon_total = colDef(
+        name = "Mon",
+        minWidth = 100,
+        headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Tue_total = colDef(
+        name = "Tue",
+        minWidth = 100,
+        headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Wed_total = colDef(
+        name = "Wed",
+        minWidth = 100,
+        headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Thu_total = colDef(
+        name = "Thu",
+        minWidth = 100,
+        headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Fri_total = colDef(
+        name = "Fri",
+        minWidth = 100,
+        headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      blank = colDef(
+        name = "",
+        minWidth = 30
+      ),
+      Mon_avg = colDef(
+        name = "Mon",
+        minWidth = 100,
+        headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Tue_avg = colDef(
+        name = "Tue",
+        minWidth = 100,
+        headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Wed_avg = colDef(
+        name = "Wed",
+        minWidth = 100,
+        headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Thu_avg = colDef(
+        name = "Thu",
+        minWidth = 100,
+        headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      Fri_avg = colDef(
+        name = "Fri",
+        minWidth = 100,
+        headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
+        align = "center",
+        format = colFormat(separators = TRUE)
+      ),
+      blank2 = colDef(
+        name = "",
+        minWidth = 30
+      ),
+      Mon_var = colDef(
+      name = "Mon",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      align = "center",
+      format = colFormat(percent = TRUE),
+      cell = function(value) {
+        if (value>0) paste0("+",value*100,"%")
+        else paste0(value*100,"%")
+      },
+      style = function(value) {
+        color <- if (is.na(value)) {"#aaa"}
+        else if (value > 0) {
+          "#008000"
+        } else "#e00000"
+        list(fontWeight = 600, color = color)
+      }
+      ),
+      Tue_var = colDef(
+      name = "Tue",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      align = "center",
+      format = colFormat(percent = TRUE),
+      cell = function(value) {
+        if (value>0) paste0("+",value*100,"%")
+        else paste0(value*100,"%")
+      },
+      style = function(value) {
+        color <- if (is.na(value)) {"#aaa"}
+        else if (value > 0) {
+          "#008000"
+        } else "#e00000"
+        list(fontWeight = 600, color = color)
+      }
+      ),
+      Wed_var = colDef(
+      name = "Wed",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      align = "center",
+      format = colFormat(percent = TRUE),
+      cell = function(value) {
+        if (value>0) paste0("+",value*100,"%")
+        else paste0(value*100,"%")
+      },
+      style = function(value) {
+        color <- if (is.na(value)) {"#aaa"}
+        else if (value > 0) {
+          "#008000"
+        } else "#e00000"
+        list(fontWeight = 600, color = color)
+      }
+      ),
+      Thu_var = colDef(
+      name = "Thu",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      align = "center",
+      format = colFormat(percent = TRUE),
+      cell = function(value) {
+        if (value>0) paste0("+",value*100,"%")
+        else paste0(value*100,"%")
+      },
+      style = function(value) {
+        color <- if (is.na(value)) {"#aaa"}
+        else if (value > 0) {
+          "#008000"
+        } else "#e00000"
+        list(fontWeight = 600, color = color)
+      }
+      ),
+      Fri_var = colDef(
+      name = "Fri",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      align = "center",
+      format = colFormat(percent = TRUE),
+      cell = function(value) {
+        if (value>0) paste0("+",value*100,"%")
+        else paste0(value*100,"%")
+      },
+      style = function(value) {
+        color <- if (is.na(value)) {"#aaa"}
+        else if (value > 0) {
+          "#008000"
+        } else "#e00000"
+        list(fontWeight = 600, color = color)
+      }
+      )
+    ) # Close Columns
+  ) # Close Reactable
+
+```
+
