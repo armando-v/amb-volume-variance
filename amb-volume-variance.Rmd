@@ -1,7 +1,5 @@
 ---
-title: "ambulatory-volume-variance"
 output: html_document
-date: '2022-10-04'
 ---
 <style type="text/css">
 div.main-container {
