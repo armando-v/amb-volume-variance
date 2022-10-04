@@ -5,7 +5,7 @@ date: '2022-10-04'
 ---
 <style type="text/css">
 div.main-container {
-  max-width: 1600px;
+  max-width: 2000px;
   margin-left: 50px;
   margin-right: 50px;
 }
