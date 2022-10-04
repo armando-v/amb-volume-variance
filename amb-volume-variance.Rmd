@@ -332,6 +332,7 @@ scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/
 
 start_date <- "2022-01-01"
 end_date <- "2022-08-31"
+report_run_date <- Sys.Date()
 
 scheduling_data_raw <- scheduling_data_raw %>%
   filter(Appt.DateYear >= as.Date(start_date) & Appt.DateYear <= as.Date(end_date))
