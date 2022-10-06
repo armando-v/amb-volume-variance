@@ -332,12 +332,12 @@ start_date <- "2022-01-01"
 end_date <- "2022-08-31"
 report_run_date <- Sys.Date()
 
+holidays <- paste(names(holidaysBetween(as.Date(start_date), as.Date(end_date), goodFriday = F, board = F, inaug = F, businessOnly = T)),collapse=", ")
+
 scheduling_data_raw <- scheduling_data_raw %>%
   filter(Appt.DateYear >= as.Date(start_date) & Appt.DateYear <= as.Date(end_date)) %>%
   mutate(holiday = isHoliday(Appt.DateYear, goodFriday = F, board = F, inaug = F, businessOnly = T)) %>%
-  filter(holiday == TRUE)
-
-holidays <- paste(names(holidaysBetween(as.Date(start_date), as.Date(end_date), goodFriday = F, board = F, inaug = F, businessOnly = T)),collapse=", ")
+  filter(holiday == FALSE)
 
 ```
 
