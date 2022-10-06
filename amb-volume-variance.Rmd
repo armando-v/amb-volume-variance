@@ -329,7 +329,7 @@ scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/
 #   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
 
 start_date <- "2022-01-01"
-end_date <- "2022-12-31"
+end_date <- "2022-08-31"
 report_run_date <- Sys.Date()
 
 holidays <- paste(names(holidaysBetween(as.Date(start_date), as.Date(end_date), goodFriday = F, board = T, inaug = F, businessOnly = F)),collapse=", ")
