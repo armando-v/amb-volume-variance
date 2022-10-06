@@ -337,7 +337,9 @@ holidays <- paste(names(holidaysBetween(as.Date(start_date), as.Date(end_date), 
 scheduling_data_raw <- scheduling_data_raw %>%
   filter(Appt.DateYear >= as.Date(start_date) & Appt.DateYear <= as.Date(end_date)) %>%
   mutate(holiday = isHoliday(Appt.DateYear, goodFriday = F, board = F, inaug = F, businessOnly = T)) %>%
-  filter(holiday == FALSE)
+  filter(holiday == TRUE)
+
+
 
 ```
 
@@ -671,7 +673,7 @@ dow_vol_summary_merged <- bind_rows(dow_vol_summary, dow_vol_summary_mshs)
   ) # Close Reactable
 
 ```
-<span style='font-size: 14px; font-style: italic; color: black'>*Data excludes `r holidays`</span><br/>
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ## Click below button to copy/download table above:
 ```{r Download Data, echo = FALSE, warning = FALSE, message = FALSE}
