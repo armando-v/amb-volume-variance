@@ -433,6 +433,13 @@ arrived_var_mshs <- arrived_calculation_mshs %>%
 
 ```
 
+```{r}
+
+print(sort(unique((scheduling_data_raw %>%
+  filter(Appt.Status == "Arrived") %>%
+  filter(Appt.Day %!in% c("Sat","Sun")))$Appt.DateYear)))
+```
+
 
 ```{r Sinai Logo, echo=FALSE, out.width = '15%'}
 knitr::include_graphics("Mount_Sinai_Logo_H.png")
