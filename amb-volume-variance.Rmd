@@ -337,6 +337,12 @@ scheduling_data_raw <- scheduling_data_raw %>%
   mutate(holiday = isHoliday(Appt.DateYear, goodFriday = F, board = F, inaug = F, businessOnly = T)) %>%
   filter(holiday == FALSE) 
 
+scheduling_data_raw <- scheduling_data_raw %>%
+  mutate(Appt.Cancel.DateYear = 
+           as.Date(as.POSIXct(Appt.Cancel.DTTM,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone(),origin = "1970-01-01"), format="%Y-%m-%d")) %>%
+  mutate(Appt.Status = case_when(Appt.Status == "Canceled" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Cancel",
+                                 TRUE ~ Appt.Status))
+
 
 ```
 
@@ -448,7 +454,7 @@ arrived_calculation_trend_site <- scheduling_data_raw %>%
 
 
 # By site and Specialty -----------------------------------------------------------------
-arrived_calculation_trend_site_specialty <- scheduling_data_raw %>%
+arrived_calculation_trend_specialty <- scheduling_data_raw %>%
   filter(Appt.Status == "Arrived") %>%
   filter(Appt.Day %!in% c("Sat","Sun")) %>%
   group_by(Campus, Campus.Specialty, Appt.MonthYear, Appt.DateYear, Appt.Day) %>%
