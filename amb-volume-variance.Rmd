@@ -451,13 +451,48 @@ arrived_calculation_trend_specialty <- scheduling_data_raw %>%
 
 ```{r No Show Calculation, echo = FALSE, warning = FALSE, message = FALSE}
 
-no_show_dept <- scheduling_data_raw %>%
+# By Specialty -------------------------------------------------------------------
+no_show_specialty <- scheduling_data_raw %>%
   filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.MonthYear, Appt.Status) %>%
+  group_by(Campus, Campus.Specialty, Appt.Year, Appt.MonthYear, New.PT2, Appt.Status) %>%
   summarise(total = n()) %>%
   pivot_wider(names_from = Appt.Status,
               values_from = total,
               values_fill = 0)
+
+# Add Missing ApptStatusFinal
+  nms <- c("Campus", "Campus.Specialty", "Appt.Year", "Appt.MonthYear", "New.PT2",
+          "Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")   # Vector of columns you want in this data.frame
+  
+  Missing <- setdiff(nms, names(no_show_specialty))  # Find names of missing columns
+  no_show_specialty[Missing] <- 0                    # Add them, filled with '0's
+  no_show_specialty <- no_show_specialty[nms]     
+  
+  no_show_specialty <- no_show_specialty %>%
+    mutate(Total = sum(across(where(is.numeric)))) 
+  
+  
+  
+# By Department -------------------------------------------------------------------
+no_show_dept <- scheduling_data_raw %>%
+  filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")) %>%
+  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.MonthYear, New.PT2, Appt.Status) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = Appt.Status,
+              values_from = total,
+              values_fill = 0)
+
+# Add Missing ApptStatusFinal
+  nms <- c("Campus", "Campus.Specialty", "Department", "Appt.Year", "Appt.MonthYear", "New.PT2",
+          "Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")   # Vector of columns you want in this data.frame
+  
+  Missing <- setdiff(nms, names(no_show_dept ))  # Find names of missing columns
+  no_show_dept [Missing] <- 0                    # Add them, filled with '0's
+  no_show_dept  <- no_show_dept [nms]     
+  
+  no_show_dept  <- no_show_dept  %>%
+    mutate(Total = sum(across(where(is.numeric)))) 
+
 ```
 
 
@@ -741,7 +776,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSHS Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -761,7 +796,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -828,7 +865,270 @@ highchart() %>%
   }) %>%
   hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
 
+```
 
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSHS No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_ytd_mshs <- no_show_specialty %>%
+  filter(Appt.Year == current_year) %>%
+  group_by(Campus, Campus.Specialty, New.PT2) %>%
+  summarise(Arrived = sum(Arrived),
+            `NoShow` = sum(`No Show`),
+            `SameDayCanceled` = sum(`Same-Day Canceled`),
+            `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
+            `SameDayBump` = sum(`Same-Day Bump`),
+            Total = sum(Total)) %>%
+  mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)) %>%
+  pivot_wider(names_from = New.PT2,
+              values_from = 4:10,
+              values_fill = 0) %>%
+  mutate(Total = (Total_Established + Total_New),
+         noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2),
+         new_perc = round(Total_New/Total,2))
+
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('mshs_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_mshs,
+  elementId = "mshs_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus = colDef(
+      # footer = "Total",
+      name = "Site",
+      maxWidth = 220),
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSHS No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_mshs <- no_show_specialty %>%
+  group_by(Campus, Appt.MonthYear, New.PT2) %>%
+  summarise(Arrived = sum(Arrived),
+            `NoShow` = sum(`No Show`),
+            `SameDayCanceled` = sum(`Same-Day Canceled`),
+            `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
+            `SameDayBump` = sum(`Same-Day Bump`),
+            Total = sum(Total)) %>%
+  mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)*100) %>%
+  pivot_wider(names_from = New.PT2,
+              values_from = 4:10,
+              values_fill = 0) %>%
+  mutate(Total = (Total_Established + Total_New),
+         noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2)*100,
+         new_perc = round(Total_New/Total,2)*100)
+
+
+
+map(unique(no_show_trend_mshs$Campus), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_mshs %>% filter(Campus == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_mshs %>% filter(Campus == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_mshs %>% filter(Campus == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_mshs %>% filter(Campus == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0(x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
 
 ```
 
@@ -939,6 +1239,55 @@ volume_trend_specialty_function <- function(site){
 
 ```
 
+
+```{r Site YTD No Show Function, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_ytd_site_function <- function(site){
+  
+  # site <- "MSUS"
+  no_show_ytd_dept <- no_show_dept %>%
+    filter(Campus == site) %>%
+    group_by(Campus, Campus.Specialty, Department, New.PT2) %>%
+    summarise(Arrived = sum(Arrived),
+              `NoShow` = sum(`No Show`),
+              `SameDayCanceled` = sum(`Same-Day Canceled`),
+              `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
+              `SameDayBump` = sum(`Same-Day Bump`),
+              Total = sum(Total)) %>%
+    mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)) %>%
+    pivot_wider(names_from = New.PT2,
+                values_from = 5:11,
+                values_fill = 0) %>%
+    mutate(Total = (Total_Established + Total_New),
+           noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2),
+           new_perc = round(Total_New/Total,2))
+  
+}
+```
+
+
+```{r Site No Show Trend Function, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_function <- function(site){
+  
+  no_show_trend_site <- no_show_dept %>%
+    group_by(Campus, Campus.Specialty, Appt.MonthYear, New.PT2) %>%
+    summarise(Arrived = sum(Arrived),
+              `NoShow` = sum(`No Show`),
+              `SameDayCanceled` = sum(`Same-Day Canceled`),
+              `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
+              `SameDayBump` = sum(`Same-Day Bump`),
+              Total = sum(Total)) %>%
+    mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)*100) %>%
+    pivot_wider(names_from = New.PT2,
+                values_from = 5:11,
+                values_fill = 0) %>%
+    mutate(Total = (Total_Established + Total_New),
+           noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2)*100,
+           new_perc = round(Total_New/Total,2)*100) %>%
+    arrange(Appt.MonthYear)
+}
+```
 
 
 ## MSBI
@@ -1176,7 +1525,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSBI Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -1228,7 +1577,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -1459,7 +1808,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSBI Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -1471,7 +1820,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -1533,6 +1884,238 @@ highchart() %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSBI ", x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
   hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSBI No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('msbi_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSBI"),
+  elementId = "msbi_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSBI No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSBI")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSBI ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -1777,7 +2360,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSDMG Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -1829,7 +2412,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -2060,7 +2643,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSDMG Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -2072,7 +2655,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -2141,6 +2726,237 @@ highchart() %>%
 
 ```
 
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSDMG No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('msdmg_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSDMG"),
+  elementId = "msdmg_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSDMG No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSDMG")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSDMG ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
 
 
 ## MSH- AMBULATORY CARE
@@ -2378,7 +3194,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSH- AMBULATORY CARE Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -2430,7 +3246,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -2661,7 +3477,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSH- AMBULATORY CARE Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -2673,7 +3489,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -2743,10 +3561,243 @@ highchart() %>%
 ```
 
 
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSH- AMBULATORY CARE No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('amb_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSH- AMBULATORY CARE"),
+  elementId = "amb_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSH- AMBULATORY CARE No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSH- AMBULATORY CARE")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSH- AMB CARE ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
+
 ## MSH-MSDFP
 ### Variance by Day of Week {.tabset .tabset-fade .tabset-pills}
 #### `r current_year` YTD
-```{r MSH-MSDPF YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
+```{r MSH-MSDFP YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 # Table Output ------------------------------------------------------------------
 htmltools::browsable(
@@ -2978,7 +4029,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSH-MSDFP Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -3030,7 +4081,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -3261,7 +4312,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSH-MSDFP Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -3273,7 +4324,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -3335,6 +4388,238 @@ highchart() %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSH-MSDFP ", x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
   hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSH-MSDFP No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('msdfp_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSH-MSDFP"),
+  elementId = "msdfp_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSH-MSDFP No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSH-MSDFP")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSH-MSDFP ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -3579,7 +4864,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSM Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -3631,7 +4916,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -3862,7 +5147,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSM Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -3874,7 +5159,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -3936,6 +5223,238 @@ highchart() %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSM ", x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
   hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSM No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('msm_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSM"),
+  elementId = "msm_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSM No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSM")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSM ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -4180,7 +5699,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSUS Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -4232,7 +5751,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -4463,7 +5982,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSUS Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -4475,7 +5994,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -4544,6 +6065,237 @@ highchart() %>%
 
 ```
 
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSUS No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('msus_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSUS"),
+  elementId = "msus_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSUS No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSUS")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSUS ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
 
 
 ## MSW
@@ -4781,7 +6533,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r MSW Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -4833,7 +6585,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -5064,7 +6816,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r MSW Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -5076,7 +6828,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -5138,6 +6892,238 @@ highchart() %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSW ", x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
   hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r MSW No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('msw_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("MSW"),
+  elementId = "msw_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r MSW No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("MSW")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("MSW ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -5382,7 +7368,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r NETWORK Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -5434,7 +7420,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -5665,7 +7651,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r NETWORK Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -5677,7 +7663,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -5739,6 +7727,238 @@ highchart() %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("NETWORK ", x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
   hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r NETWORK No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('network_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("NETWORK"),
+  elementId = "network_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r NETWORK No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("NETWORK")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("NETWORK ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -5983,7 +8203,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 ```{r ONCOLOGY Specialty YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -6035,7 +8255,7 @@ htmltools::browsable(
     ),
     columns = list(
       Campus.Specialty = colDef(
-        name = "Site",
+        name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
@@ -6266,7 +8486,7 @@ htmltools::browsable(
 )
 
 ```
-
+<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
 #### Trend
 ```{r ONCOLOGY Volume Trend Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -6278,7 +8498,9 @@ highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
     list(title = list(text = "% Variance from Daily Avg Volume"), lineWidth = 3, 
-         labels = list(format = '{value}%'))
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 0, color = "red", width = 2,
+                               dashStyle = "shortdash")))
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
@@ -6346,4 +8568,237 @@ highchart() %>%
   hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
 
 ```
-<span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
+
+
+### No Shows {.tabset .tabset-fade .tabset-pills}
+#### `r current_year` YTD
+```{r ONCOLOGY No Show Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Table Output -----------------------------------------------------------------
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Table"),
+      onclick = "Reactable.downloadDataCSV('onc_ytd_noshow-download-table', 'Avg No Show Rate')"
+    ),
+
+reactable(
+  no_show_ytd_site_function("ONCOLOGY"),
+  elementId = "onc_ytd_noshow-download-table",
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left",
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+  # RowStyle = function(index) {
+  #           if (index %in% c(nrow(referral_vol_site_data_mshs))) {
+  #             list(`border-top` = "2px solid rgb(184,184,184)",
+  #                  fontWeight = "Bold")
+  #           }
+  #         },
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  searchable = TRUE,
+
+  groupBy = "Campus.Specialty",
+
+  columnGroups = list(
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
+             columns = c("Total", "new_perc"),
+             headerStyle = list(color = "#212070", fontSize = "16px")),
+    colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " No Show Rate"), 
+             columns = c("noShow_rate", "noShow_rate_Established", "noShow_rate_New"),
+             headerStyle = list(color = "#d80b8c", fontSize = "16px"))
+    ),
+
+  columns = list(
+
+    Campus.Specialty = colDef(
+      name = "Specialty",
+      maxWidth = 250),
+    
+    Department = colDef(
+      name = "Department",
+      maxWidth = 300),
+    
+
+    `noShow_rate_Established` = colDef(
+      name = "No Show Rate - Established",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalTotal_Established = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalTotal_Established += row['Total_Established']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established) / totalTotal_Established || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate_New` = colDef(
+      name = "No Show Rate - New",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal_New = 0
+        rows.forEach(function(row) {
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal_New += row['Total_New']
+        })
+        return (totalNoShow_New + totalSameDayCanceled_New) / totalTotal_New || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    `noShow_rate` = colDef(
+      name = "No Show Rate - All",
+      maxWidth = 150,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalNoShow_Established = 0
+        let totalSameDayCanceled_Established = 0
+        let totalNoShow_New = 0
+        let totalSameDayCanceled_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalNoShow_Established += row['NoShow_Established']
+          totalSameDayCanceled_Established += row['SameDayCanceled_Established']
+          totalNoShow_New += row['NoShow_New']
+          totalSameDayCanceled_New += row['SameDayCanceled_New']
+          totalTotal += row['Total']
+        })
+        return (totalNoShow_Established + totalSameDayCanceled_Established + totalNoShow_New + totalSameDayCanceled_New) / totalTotal || '-'
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Total = colDef(
+      name = "Total Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = 'sum',
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    new_perc = colDef(
+      name = "% New Visits",
+      maxWidth = 150,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = JS("function(values, rows) {
+        let totalTotal_New = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal_New += row['Total_New']
+          totalTotal += row['Total']
+        })
+        return (totalTotal_New) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+
+    Arrived_Established = colDef(show =F),
+    Arrived_New = colDef(show =F),
+    NoShow_Established = colDef(show =F),
+    NoShow_New = colDef(show =F),
+    `SameDayCanceled_Established` = colDef(show =F),
+    `SameDayCanceled_New` = colDef(show =F),
+    `SameDayRescheduled_Established` = colDef(show =F),
+    `SameDayRescheduled_New` = colDef(show =F),
+    `SameDayBump_Established` = colDef(show =F),
+    `SameDayBump_New` = colDef(show =F),
+    `Total_Established` = colDef(show =F),
+    `Total_New` = colDef(show =F),
+    `Total` = colDef(show =F),
+    Campus = colDef(show =F)
+
+  ) # Close Columns
+
+  ) # Close Reactable
+
+ )
+)
+
+```
+
+
+#### Trend
+```{r ONCOLOGY No Show Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_trend_site_output <- no_show_trend_site_function("ONCOLOGY")
+
+map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+highchart() %>%
+  hc_yAxis_multiples(
+    # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
+    list(title = list(text = "No Show Rate"), lineWidth = 3, 
+         labels = list(format = '{value}%'),
+         plotLines = list(list(value = 20, color = "red", width = 2,
+                               dashStyle = "shortdash")))
+           # showLastLabel = FALSE, opposite = TRUE)
+  ) %>%
+  hc_xAxis(title = list(text = ""),
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           type = "datetime",
+           labels = list(format = '{value:%Y-%m}')
+           # dateTimeLabelFormats = list(month = '%Y-%m')
+           ) %>%
+  # hc_add_series(name = "Total Visits",
+  #               data = (volume_trend_mshs %>% filter(Campus == x))$avg_vol_all,
+  #               type = 'column',
+  #               color='#212070',
+  #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
+  hc_add_series(name   = "Established",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#212070',
+                lineWidth=3,
+                lineColor='#212070'
+                ) %>%
+  hc_add_series(name   = "New",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#d80b8c',
+                lineWidth=3,
+                lineColor='#d80b8c'
+                ) %>%
+  hc_add_series(name   = "All",
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+               type = 'line', 
+                # color = '#a5a7a5'
+                marker = list(enabled= TRUE),
+                color='#00aeef',
+                lineWidth=3,
+                lineColor='#00aeef'
+                ) %>%
+  hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
+  hc_title(text = paste0("ONCOLOGY ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Target:",
+              align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
+    hc_tooltip(shared = TRUE, borderColor = "black")
+  }) %>%
+  hw_grid(ncol = 2, rowheight = 400) %>% htmltools::browsable()
+
+```
+
+
