@@ -321,11 +321,11 @@ not_all_na <- function(x) all(!is.na(x)) # Exclude columns with All NAs
 
 scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/Data_Updated/historical_data.rds")) %>%
   filter(!is.na(Campus)) %>%
-  filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
+  filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDMG"))
 
 # scheduling_data_raw <- as.data.frame(readRDS("historical_data.rds")) %>%
 #   filter(!is.na(Campus)) %>%
-#   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD"))
+#   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDMG"))
 
 start_date <- "2022-01-01"
 end_date <- max((scheduling_data_raw %>% filter(Appt.Status == "Arrived"))$Appt.DateYear)
@@ -340,9 +340,10 @@ scheduling_data_raw <- scheduling_data_raw %>%
 scheduling_data_raw <- scheduling_data_raw %>%
   mutate(Appt.Cancel.DateYear = 
            as.Date(as.POSIXct(Appt.Cancel.DTTM,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone(),origin = "1970-01-01"), format="%Y-%m-%d")) %>%
-  mutate(Appt.Status = case_when(Appt.Status == "Canceled" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Cancel",
+  mutate(Appt.Status = case_when(Appt.Status == "Canceled" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Canceled",
+                                 Appt.Status == "Rescheduled" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Rescheduled",
+                                 Appt.Status == "Bump" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Bump",
                                  TRUE ~ Appt.Status))
-
 
 ```
 
@@ -414,29 +415,6 @@ arrived_calculation_ytd_specialty <- scheduling_data_raw %>%
   dplyr::select(-unique)
 
 
-
-
-
-
-
-
-
-# By MSHS and Specialty -------------------------------------------------------------------
-arrived_calculation_trend_mshs_specialty <- scheduling_data_raw %>%
-  filter(Appt.Status == "Arrived") %>%
-  filter(Appt.Day %!in% c("Sat","Sun")) %>%
-  group_by(Campus.Specialty, Appt.MonthYear, Appt.DateYear, Appt.Day) %>%
-  summarise(total = n()) %>%
-  group_by(Campus.Specialty, Appt.MonthYear, Appt.Day) %>%
-  mutate(avg_vol_day = mean(total)) %>% 
-  ungroup() %>%
-  group_by(Campus.Specialty, Appt.MonthYear) %>%
-  mutate(avg_vol_all = mean(total)) %>%
-  group_by(Campus.Specialty, Appt.MonthYear, Appt.Day, avg_vol_all, avg_vol_day) %>%
-  summarise(total_vol = sum(total)) %>%
-  mutate(daily_var = round((avg_vol_day-(mean(avg_vol_all)))/(mean(avg_vol_all)),2))
-
-
 # By Site -------------------------------------------------------------------
 arrived_calculation_trend_site <- scheduling_data_raw %>%
   filter(Appt.Status == "Arrived") %>%
@@ -468,22 +446,18 @@ arrived_calculation_trend_specialty <- scheduling_data_raw %>%
   summarise(total_vol = sum(total)) %>%
   mutate(daily_var = round((avg_vol_day-(mean(avg_vol_all)))/(mean(avg_vol_all)),2))
 
+```
 
-# By Site and Department -----------------------------------------------------------------
-arrived_calculation_trend_site_dept <- scheduling_data_raw %>%
-  filter(Appt.Status == "Arrived") %>%
-  filter(Appt.Day %!in% c("Sat","Sun")) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.MonthYear, Appt.DateYear, Appt.Day) %>%
+
+```{r No Show Calculation, echo = FALSE, warning = FALSE, message = FALSE}
+
+no_show_dept <- scheduling_data_raw %>%
+  filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")) %>%
+  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.MonthYear, Appt.Status) %>%
   summarise(total = n()) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.MonthYear, Appt.Day) %>%
-  mutate(avg_vol_day = mean(total)) %>% 
-  ungroup() %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.MonthYear) %>%
-  mutate(avg_vol_all = mean(total)) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.MonthYear, Appt.Day, avg_vol_all, avg_vol_day) %>%
-  summarise(total_vol = sum(total)) %>%
-  mutate(daily_var = round((avg_vol_day-(mean(avg_vol_all)))/(mean(avg_vol_all)),2))
-
+  pivot_wider(names_from = Appt.Status,
+              values_from = total,
+              values_fill = 0)
 ```
 
 
@@ -496,6 +470,8 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 *Report run date: `r report_run_date`*<br/>
 *Excludes Rad Onc and Radiology data*<br/>
 *Excludes eIDX, MD Office data.*<br/>
+______________________________________________________________________________________________________________________________
+<br/>
 
 ## MSHS
 ### Variance by Day of Week {.tabset .tabset-fade .tabset-pills}
@@ -503,7 +479,7 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 ```{r MSHS YTD Volume Variance Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 day_order <- c('Mon','Tue','Wed','Thu','Fri')
-site_order <- c("MSBI","MSDD","MSH- AMBULATORY CARE","MSH-MSDFP","MSM","MSUS","MSW","NETWORK","ONCOLOGY","MSHS Total")
+site_order <- c("MSBI","MSDMG","MSH- AMBULATORY CARE","MSH-MSDFP","MSM","MSUS","MSW","NETWORK","ONCOLOGY","MSHS Total")
 
 ytd_total_volume_mshs <- arrived_calculation_ytd_merged %>%
   arrange(match(Appt.Day, day_order)) %>%
@@ -588,7 +564,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -860,7 +836,7 @@ highchart() %>%
 ```{r Site YTD Volume Function, echo = FALSE, warning = FALSE, message = FALSE}
 
 day_order <- c('Mon','Tue','Wed','Thu','Fri')
-site_order <- c("MSBI","MSDD","MSH- AMBULATORY CARE","MSH-MSDFP","MSM","MSUS","MSW","NETWORK","ONCOLOGY","MSHS Total")
+site_order <- c("MSBI","MSDMG","MSH- AMBULATORY CARE","MSH-MSDFP","MSM","MSUS","MSW","NETWORK","ONCOLOGY","MSHS Total")
 
 ytd_total_volume_site_function <- function(site){
   
@@ -944,7 +920,7 @@ ytd_total_volume_specialty_function <- function(site){
 ```{r Site Volume Trend Function, echo = FALSE, warning = FALSE, message = FALSE}
 
 day_order <- c('Mon','Tue','Wed','Thu','Fri')
-site_order <- c("MSBI","MSDD","MSH- AMBULATORY CARE","MSH-MSDFP","MSM","MSUS","MSW","NETWORK","ONCOLOGY","MSHS Total")
+site_order <- c("MSBI","MSDMG","MSH- AMBULATORY CARE","MSH-MSDFP","MSM","MSUS","MSW","NETWORK","ONCOLOGY","MSHS Total")
 
 volume_trend_specialty_function <- function(site){
   
@@ -1023,7 +999,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -1261,7 +1237,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -1624,7 +1600,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -1862,7 +1838,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -2225,7 +2201,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -2463,7 +2439,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -2825,7 +2801,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -3063,7 +3039,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -3426,7 +3402,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -3664,7 +3640,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -4027,7 +4003,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -4265,7 +4241,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -4628,7 +4604,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -4866,7 +4842,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -5229,7 +5205,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -5467,7 +5443,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -5830,7 +5806,7 @@ htmltools::browsable(
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
         style = list(fontWeight = "Bold"),
         align = "left"
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
@@ -6068,7 +6044,7 @@ htmltools::browsable(
         if (is.na(value)) "  \u2013 "
         else value
         }
-        # footer = "*Excludes MSDD and NETWORK"
+        # footer = "*Excludes MSDMG and NETWORK"
         ),
       Mon_total_day = colDef(
         name = "Mon",
