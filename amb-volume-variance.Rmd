@@ -319,31 +319,42 @@ not_all_na <- function(x) all(!is.na(x)) # Exclude columns with All NAs
 
 ```{r Import Data, echo = FALSE, warning = FALSE, message = FALSE}
 
-scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/Data_Updated/historical_data.rds")) %>%
-  filter(!is.na(Campus)) %>%
-  filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDMG"))
-
 # scheduling_data_raw <- as.data.frame(readRDS("historical_data.rds")) %>%
+#   mutate(Campus = ifelse(Campus == "MSDD", "MSDMG", Campus)) %>%
 #   filter(!is.na(Campus)) %>%
-#   filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDMG"))
+#   filter(Appt.Status %in% c("Arrived","No Show","Canceled"))
+
+scheduling_data_raw <- as.data.frame(readRDS("/nfs/data/Applications/Ambulatory/Data_Updated/historical_data.rds")) %>%
+  mutate(Campus = ifelse(Campus == "MSDD", "MSDMG", Campus)) %>%
+  filter(!is.na(Campus)) %>%
+  filter(Appt.Status %in% c("Arrived","No Show","Canceled"))
+  
+
+sites <- c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDMG")
 
 start_date <- "2022-01-01"
-end_date <- max((scheduling_data_raw %>% filter(Appt.Status == "Arrived"))$Appt.DateYear)
+end_date <- Sys.Date()-1
 
 holidays <- paste(names(holidaysBetween(as.Date(start_date), as.Date(end_date), goodFriday = F, board = T, inaug = F, businessOnly = F)),collapse=", ")
 
 scheduling_data_raw <- scheduling_data_raw %>%
-  filter(Appt.DateYear >= as.Date(start_date)) %>%
-  mutate(holiday = isHoliday(Appt.DateYear, goodFriday = F, board = F, inaug = F, businessOnly = T)) %>%
-  filter(holiday == FALSE) 
+  filter(Appt.DateYear >= as.Date(start_date) & Appt.DateYear <= end_date) %>%
+  mutate(holiday = isHoliday(Appt.DateYear, goodFriday = F, board = F, inaug = F, businessOnly = T)) 
 
 scheduling_data_raw <- scheduling_data_raw %>%
   mutate(Appt.Cancel.DateYear = 
            as.Date(as.POSIXct(Appt.Cancel.DTTM,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone(),origin = "1970-01-01"), format="%Y-%m-%d")) %>%
   mutate(Appt.Status = case_when(Appt.Status == "Canceled" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Canceled",
-                                 Appt.Status == "Rescheduled" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Rescheduled",
-                                 Appt.Status == "Bump" & Appt.DateYear == as.Date(Appt.Cancel.DateYear) ~ "Same-Day Bump",
                                  TRUE ~ Appt.Status))
+
+
+# Manual Grouping of Department Specialty --------------------------------------
+scheduling_data_raw <- scheduling_data_raw %>%
+  mutate(Campus.Specialty.Group.Group = case_when(str_detect(Campus.Specialty, "Peds") ~ "Peds Subspecialties",
+                                            Campus.Specialty %in% c("OB/Gyn","Obstetrics","Gynecology") ~ "OB/Gyn",
+                                            Campus.Specialty %in% c("Family Medicine","Internal Medicine") ~ "Primary Care",
+                                            Campus.Specialty %in% c("Geriatrics","Gerontology") ~ "Geriatrics",
+                                            TRUE ~ Campus.Specialty))
 
 ```
 
@@ -359,6 +370,8 @@ current_year <- year(report_run_date)
 # By MSHS -------------------------------------------------------------------
 ## Volume and Variance YTD --------------------------------------------------
 arrived_calculation_ytd_site <- scheduling_data_raw %>%
+  filter(Campus %in% sites) %>%
+  filter(holiday == FALSE) %>%
   filter(Appt.Status == "Arrived") %>%
   filter(Appt.Day %!in% c("Sat","Sun")) %>%
   filter(Appt.Year == current_year) %>%
@@ -376,6 +389,8 @@ arrived_calculation_ytd_site <- scheduling_data_raw %>%
   dplyr::select(-unique)
 
 arrived_calculation_ytd_mshs <- scheduling_data_raw %>%
+  filter(Campus %in% sites) %>%
+  filter(holiday == FALSE) %>%
   filter(Appt.Status == "Arrived") %>%
   filter(Appt.Day %!in% c("Sat","Sun")) %>%
   filter(Appt.Year == current_year) %>%
@@ -398,18 +413,20 @@ arrived_calculation_ytd_merged <- bind_rows(arrived_calculation_ytd_site, arrive
 
 ## Volume and Variance Trend --------------------------------------------------
 arrived_calculation_ytd_specialty <- scheduling_data_raw %>%
+  filter(Campus %in% sites) %>%
+  filter(holiday == FALSE) %>%
   filter(Appt.Status == "Arrived") %>%
   filter(Appt.Day %!in% c("Sat","Sun")) %>%
   filter(Appt.Year == current_year) %>%
-  group_by(Appt.Year, Campus, Campus.Specialty, Appt.DateYear, Appt.Day) %>%
+  group_by(Appt.Year, Campus, Campus.Specialty.Group, Appt.DateYear, Appt.Day) %>%
   summarise(total = n()) %>%
-  group_by(Appt.Year, Campus, Campus.Specialty, Appt.Day) %>%
+  group_by(Appt.Year, Campus, Campus.Specialty.Group, Appt.Day) %>%
   mutate(total_day = sum(total),
          avg_vol_day = round(mean(total))) %>% 
   ungroup() %>%
-  group_by(Appt.Year, Campus, Campus.Specialty) %>%
+  group_by(Appt.Year, Campus, Campus.Specialty.Group) %>%
   mutate(avg_vol_all = round(mean(total))) %>%
-  group_by(Appt.Year, Campus, Campus.Specialty, Appt.Day, total_day, avg_vol_all, avg_vol_day) %>%
+  group_by(Appt.Year, Campus, Campus.Specialty.Group, Appt.Day, total_day, avg_vol_all, avg_vol_day) %>%
   summarise(unique = n()) %>%
   mutate(daily_var = round((avg_vol_day-(mean(avg_vol_all)))/(mean(avg_vol_all)),2)) %>%
   dplyr::select(-unique)
@@ -417,6 +434,8 @@ arrived_calculation_ytd_specialty <- scheduling_data_raw %>%
 
 # By Site -------------------------------------------------------------------
 arrived_calculation_trend_site <- scheduling_data_raw %>%
+  filter(Campus %in% sites) %>%
+  filter(holiday == FALSE) %>%
   filter(Appt.Status == "Arrived") %>%
   filter(Appt.Day %!in% c("Sat","Sun")) %>%
   group_by(Campus, Appt.MonthYear, Appt.DateYear, Appt.Day) %>%
@@ -433,16 +452,18 @@ arrived_calculation_trend_site <- scheduling_data_raw %>%
 
 # By site and Specialty -----------------------------------------------------------------
 arrived_calculation_trend_specialty <- scheduling_data_raw %>%
+  filter(Campus %in% sites) %>%
+  filter(holiday == FALSE) %>%
   filter(Appt.Status == "Arrived") %>%
   filter(Appt.Day %!in% c("Sat","Sun")) %>%
-  group_by(Campus, Campus.Specialty, Appt.MonthYear, Appt.DateYear, Appt.Day) %>%
+  group_by(Campus, Campus.Specialty.Group, Appt.MonthYear, Appt.DateYear, Appt.Day) %>%
   summarise(total = n()) %>%
-  group_by(Campus, Campus.Specialty, Appt.MonthYear, Appt.Day) %>%
+  group_by(Campus, Campus.Specialty.Group, Appt.MonthYear, Appt.Day) %>%
   mutate(avg_vol_day = mean(total)) %>% 
   ungroup() %>%
-  group_by(Campus, Campus.Specialty, Appt.MonthYear) %>%
+  group_by(Campus, Campus.Specialty.Group, Appt.MonthYear) %>%
   mutate(avg_vol_all = mean(total)) %>%
-  group_by(Campus, Campus.Specialty, Appt.MonthYear, Appt.Day, avg_vol_all, avg_vol_day) %>%
+  group_by(Campus, Campus.Specialty.Group, Appt.MonthYear, Appt.Day, avg_vol_all, avg_vol_day) %>%
   summarise(total_vol = sum(total)) %>%
   mutate(daily_var = round((avg_vol_day-(mean(avg_vol_all)))/(mean(avg_vol_all)),2))
 
@@ -453,16 +474,17 @@ arrived_calculation_trend_specialty <- scheduling_data_raw %>%
 
 # By Specialty -------------------------------------------------------------------
 no_show_specialty <- scheduling_data_raw %>%
-  filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")) %>%
-  group_by(Campus, Campus.Specialty, Appt.Year, Appt.MonthYear, New.PT2, Appt.Status) %>%
+  filter(Campus %in% sites) %>%
+  filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled")) %>%
+  group_by(Campus, Campus.Specialty.Group, Appt.Year, Appt.MonthYear, New.PT2, Appt.Status) %>%
   summarise(total = n()) %>%
   pivot_wider(names_from = Appt.Status,
               values_from = total,
               values_fill = 0)
 
 # Add Missing ApptStatusFinal
-  nms <- c("Campus", "Campus.Specialty", "Appt.Year", "Appt.MonthYear", "New.PT2",
-          "Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")   # Vector of columns you want in this data.frame
+  nms <- c("Campus", "Campus.Specialty.Group", "Appt.Year", "Appt.MonthYear", "New.PT2",
+          "Arrived", "No Show", "Same-Day Canceled")   # Vector of columns you want in this data.frame
   
   Missing <- setdiff(nms, names(no_show_specialty))  # Find names of missing columns
   no_show_specialty[Missing] <- 0                    # Add them, filled with '0's
@@ -475,16 +497,17 @@ no_show_specialty <- scheduling_data_raw %>%
   
 # By Department -------------------------------------------------------------------
 no_show_dept <- scheduling_data_raw %>%
-  filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.MonthYear, New.PT2, Appt.Status) %>%
+    filter(Campus %in% sites) %>%
+  filter(Appt.Status %in% c("Arrived", "No Show", "Same-Day Canceled")) %>%
+  group_by(Campus, Campus.Specialty.Group, Department, Appt.Year, Appt.MonthYear, New.PT2, Appt.Status) %>%
   summarise(total = n()) %>%
   pivot_wider(names_from = Appt.Status,
               values_from = total,
               values_fill = 0)
 
 # Add Missing ApptStatusFinal
-  nms <- c("Campus", "Campus.Specialty", "Department", "Appt.Year", "Appt.MonthYear", "New.PT2",
-          "Arrived", "No Show", "Same-Day Canceled", "Same-Day Rescheduled", "Same-Day Bump")   # Vector of columns you want in this data.frame
+  nms <- c("Campus", "Campus.Specialty.Group", "Department", "Appt.Year", "Appt.MonthYear", "New.PT2",
+          "Arrived", "No Show", "Same-Day Canceled")   # Vector of columns you want in this data.frame
   
   Missing <- setdiff(nms, names(no_show_dept ))  # Find names of missing columns
   no_show_dept [Missing] <- 0                    # Add them, filled with '0's
@@ -555,8 +578,8 @@ htmltools::browsable(
       onclick = "Reactable.downloadDataCSV('ytd_mshs_merged-download-table', 'Avg Volume by DOW and Site')"
     ),
   reactable(
-    ytd_mshs_merged,
-    # groupBy = c("Campus","Campus.Specialty"),
+    ytd_mshs_merged %>% filter(Campus %in% site_order),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -858,8 +881,8 @@ highchart() %>%
                 lineColor='#ffc000'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
-  hc_title(text = paste0(x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
-  hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+  hc_title(text = x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = paste0("Avg Volume by DOW Compared to Daily Avg Weekday Volume",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -874,16 +897,14 @@ highchart() %>%
 
 no_show_ytd_mshs <- no_show_specialty %>%
   filter(Appt.Year == current_year) %>%
-  group_by(Campus, Campus.Specialty, New.PT2) %>%
+  group_by(Campus, Campus.Specialty.Group, New.PT2) %>%
   summarise(Arrived = sum(Arrived),
             `NoShow` = sum(`No Show`),
             `SameDayCanceled` = sum(`Same-Day Canceled`),
-            `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
-            `SameDayBump` = sum(`Same-Day Bump`),
             Total = sum(Total)) %>%
   mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)) %>%
   pivot_wider(names_from = New.PT2,
-              values_from = 4:10,
+              values_from = 4:8,
               values_fill = 0) %>%
   mutate(Total = (Total_Established + Total_New),
          noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2),
@@ -937,7 +958,7 @@ reactable(
       name = "Site",
       maxWidth = 220),
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
 
@@ -1061,12 +1082,10 @@ no_show_trend_mshs <- no_show_specialty %>%
   summarise(Arrived = sum(Arrived),
             `NoShow` = sum(`No Show`),
             `SameDayCanceled` = sum(`Same-Day Canceled`),
-            `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
-            `SameDayBump` = sum(`Same-Day Bump`),
             Total = sum(Total)) %>%
   mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)*100) %>%
   pivot_wider(names_from = New.PT2,
-              values_from = 4:10,
+              values_from = 4:8,
               values_fill = 0) %>%
   mutate(Total = (Total_Established + Total_New),
          noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2)*100,
@@ -1118,9 +1137,9 @@ highchart() %>%
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0(x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -1185,7 +1204,7 @@ ytd_total_volume_specialty_function <- function(site){
   ytd_total_volume_specialty <- ytd_specialty %>%
     arrange(match(Appt.Day, day_order)) %>%
     ungroup() %>%
-    dplyr::select(Campus.Specialty, Appt.Day, total_day) %>%
+    dplyr::select(Campus.Specialty.Group, Appt.Day, total_day) %>%
     mutate(Appt.Day = paste0(Appt.Day,"_total_day")) %>%
     pivot_wider(names_from = Appt.Day,
                 values_from = total_day) %>%
@@ -1194,7 +1213,7 @@ ytd_total_volume_specialty_function <- function(site){
   ytd_avg_volume_specialty <- ytd_specialty %>%
     arrange(match(Appt.Day, day_order)) %>%
     ungroup() %>%
-    dplyr::select(Campus.Specialty, Appt.Day, avg_vol_day) %>%
+    dplyr::select(Campus.Specialty.Group, Appt.Day, avg_vol_day) %>%
     mutate(Appt.Day = paste0(Appt.Day,"_avg_day")) %>%
     pivot_wider(names_from = Appt.Day,
                 values_from = avg_vol_day) %>%
@@ -1203,7 +1222,7 @@ ytd_total_volume_specialty_function <- function(site){
   ytd_avg_var_specialty <- ytd_specialty %>%
     arrange(match(Appt.Day, day_order)) %>%
     ungroup() %>%
-    dplyr::select(Campus.Specialty, Appt.Day, daily_var) %>%
+    dplyr::select(Campus.Specialty.Group, Appt.Day, daily_var) %>%
     mutate(Appt.Day = paste0(Appt.Day,"_var")) %>%
     pivot_wider(names_from = Appt.Day,
                 values_from = daily_var)
@@ -1230,7 +1249,7 @@ volume_trend_specialty_function <- function(site){
     arrange(match(Appt.Day, day_order)) %>%
     ungroup() %>%
     mutate(daily_var = daily_var*100) %>%
-    dplyr::select(Appt.MonthYear, Campus.Specialty, Appt.Day, avg_vol_all, daily_var) %>%
+    dplyr::select(Appt.MonthYear, Campus.Specialty.Group, Appt.Day, avg_vol_all, daily_var) %>%
     pivot_wider(names_from = Appt.Day,
                 values_from = daily_var) %>%
     arrange(Appt.MonthYear)
@@ -1247,16 +1266,14 @@ no_show_ytd_site_function <- function(site){
   # site <- "MSUS"
   no_show_ytd_dept <- no_show_dept %>%
     filter(Campus == site) %>%
-    group_by(Campus, Campus.Specialty, Department, New.PT2) %>%
+    group_by(Campus, Campus.Specialty.Group, Department, New.PT2) %>%
     summarise(Arrived = sum(Arrived),
               `NoShow` = sum(`No Show`),
               `SameDayCanceled` = sum(`Same-Day Canceled`),
-              `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
-              `SameDayBump` = sum(`Same-Day Bump`),
               Total = sum(Total)) %>%
     mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)) %>%
     pivot_wider(names_from = New.PT2,
-                values_from = 5:11,
+                values_from = 5:9,
                 values_fill = 0) %>%
     mutate(Total = (Total_Established + Total_New),
            noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2),
@@ -1271,16 +1288,15 @@ no_show_ytd_site_function <- function(site){
 no_show_trend_site_function <- function(site){
   
   no_show_trend_site <- no_show_dept %>%
-    group_by(Campus, Campus.Specialty, Appt.MonthYear, New.PT2) %>%
+    filter(Campus == site) %>%
+    group_by(Campus, Campus.Specialty.Group, Appt.MonthYear, New.PT2) %>%
     summarise(Arrived = sum(Arrived),
               `NoShow` = sum(`No Show`),
               `SameDayCanceled` = sum(`Same-Day Canceled`),
-              `SameDayRescheduled` = sum(`Same-Day Rescheduled`),
-              `SameDayBump` = sum(`Same-Day Bump`),
               Total = sum(Total)) %>%
     mutate(noShow_rate = round((`NoShow` + `SameDayCanceled`)/ Total,2)*100) %>%
     pivot_wider(names_from = New.PT2,
-                values_from = 5:11,
+                values_from = 5:9,
                 values_fill = 0) %>%
     mutate(Total = (Total_Established + Total_New),
            noShow_rate = round((`NoShow_Established` + `SameDayCanceled_Established` + `NoShow_New` + `SameDayCanceled_New`)/Total,2)*100,
@@ -1305,7 +1321,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSBI"),
     elementId = "ytd_msbi_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -1539,7 +1555,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSBI"),
     elementId = "ytd_msbi_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -1576,7 +1592,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -1815,7 +1831,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSBI")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -1826,7 +1842,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -1837,7 +1853,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -1846,7 +1862,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -1855,7 +1871,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -1864,7 +1880,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -1873,7 +1889,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -1925,7 +1941,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -1938,7 +1954,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -2065,7 +2081,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSBI")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -2076,7 +2092,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -2087,7 +2103,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2096,7 +2112,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2105,13 +2121,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSBI ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -2140,7 +2156,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSDMG"),
     elementId = "ytd_msdmg_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -2374,7 +2390,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSDMG"),
     elementId = "ytd_msdmg_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -2411,7 +2427,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -2650,7 +2666,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSDMG")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -2661,7 +2677,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -2672,7 +2688,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2681,7 +2697,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2690,7 +2706,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2699,7 +2715,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2708,7 +2724,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2760,7 +2776,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -2773,7 +2789,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -2900,7 +2916,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSDMG")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -2911,7 +2927,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -2922,7 +2938,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2931,7 +2947,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -2940,13 +2956,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSDMG ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -2974,7 +2990,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSH- AMBULATORY CARE"),
     elementId = "ytd_amb_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -3208,7 +3224,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSH- AMBULATORY CARE"),
     elementId = "ytd_amb_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -3245,7 +3261,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -3484,7 +3500,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSH- AMBULATORY CARE")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -3495,7 +3511,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -3506,7 +3522,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3515,7 +3531,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3524,7 +3540,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3533,7 +3549,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3542,7 +3558,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3594,7 +3610,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -3607,7 +3623,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -3734,7 +3750,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSH- AMBULATORY CARE")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -3745,7 +3761,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -3756,7 +3772,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3765,7 +3781,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -3774,13 +3790,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSH- AMB CARE ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -3809,7 +3825,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSH-MSDFP"),
     elementId = "ytd_msdfp_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -4043,7 +4059,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSH-MSDFP"),
     elementId = "ytd_msdfp_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -4080,7 +4096,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -4319,7 +4335,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSH-MSDFP")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -4330,7 +4346,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -4341,7 +4357,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4350,7 +4366,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4359,7 +4375,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4368,7 +4384,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4377,7 +4393,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4429,7 +4445,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -4442,7 +4458,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -4569,7 +4585,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSH-MSDFP")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -4580,7 +4596,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -4591,7 +4607,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4600,7 +4616,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -4609,13 +4625,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSH-MSDFP ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -4644,7 +4660,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSM"),
     elementId = "ytd_msm_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -4878,7 +4894,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSM"),
     elementId = "ytd_msm_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -4915,7 +4931,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -5154,7 +5170,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSM")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -5165,7 +5181,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -5176,7 +5192,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5185,7 +5201,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5194,7 +5210,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5203,7 +5219,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5212,7 +5228,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5264,7 +5280,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -5277,7 +5293,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -5404,7 +5420,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSM")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -5415,7 +5431,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -5426,7 +5442,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5435,7 +5451,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -5444,13 +5460,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSM ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -5479,7 +5495,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSUS"),
     elementId = "ytd_msus_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -5713,7 +5729,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSUS"),
     elementId = "ytd_msus_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -5750,7 +5766,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -5989,7 +6005,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSUS")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -6000,7 +6016,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -6011,7 +6027,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6020,7 +6036,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6029,7 +6045,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6038,7 +6054,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6047,7 +6063,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6099,7 +6115,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -6112,7 +6128,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -6239,7 +6255,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSUS")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -6250,7 +6266,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -6261,7 +6277,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6270,7 +6286,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6279,13 +6295,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSUS ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -6313,7 +6329,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("MSW"),
     elementId = "ytd_msw_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -6547,7 +6563,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("MSW"),
     elementId = "ytd_msw_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -6584,7 +6600,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -6823,7 +6839,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("MSBI")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -6834,7 +6850,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -6845,7 +6861,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6854,7 +6870,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6863,7 +6879,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6872,7 +6888,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6881,7 +6897,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -6933,7 +6949,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -6946,7 +6962,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -7073,7 +7089,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("MSW")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -7084,7 +7100,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -7095,7 +7111,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7104,7 +7120,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7113,13 +7129,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("MSW ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -7148,7 +7164,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("NETWORK"),
     elementId = "ytd_network_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -7382,7 +7398,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("NETWORK"),
     elementId = "ytd_network_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -7419,7 +7435,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -7658,7 +7674,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("NETWORK")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -7669,7 +7685,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -7680,7 +7696,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7689,7 +7705,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7698,7 +7714,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7707,7 +7723,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7716,7 +7732,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7768,7 +7784,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -7781,7 +7797,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -7908,7 +7924,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("NETWORK")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -7919,7 +7935,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -7930,7 +7946,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7939,7 +7955,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -7948,13 +7964,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("NETWORK ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
@@ -7983,7 +7999,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_site_function("ONCOLOGY"),
     elementId = "ytd_onc_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -8217,7 +8233,7 @@ htmltools::browsable(
   reactable(
     ytd_total_volume_specialty_function("ONCOLOGY"),
     elementId = "ytd_onc_specialty_merged-download-table",
-    # groupBy = c("Campus","Campus.Specialty"),
+    # groupBy = c("Campus","Campus.Specialty.Group"),
     # defaultPageSize = 5,
     # elementId = "site-grouping-table",
     style = list(fontFamily = 'Calibri',
@@ -8254,7 +8270,7 @@ htmltools::browsable(
              headerStyle = list(color = "#d80b8c", fontSize = "16px"))
     ),
     columns = list(
-      Campus.Specialty = colDef(
+      Campus.Specialty.Group = colDef(
         name = "Specialty",
         minWidth = 200,
         headerStyle = list(background = "white", color = "black", fontWeight = "Bold", fontSize = "14px"),
@@ -8493,7 +8509,7 @@ htmltools::browsable(
 
 volume_trend_specialty_output <- volume_trend_specialty_function("ONCOLOGY")
 
-map(unique(volume_trend_specialty_output$Campus.Specialty), function(x){
+map(unique(volume_trend_specialty_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -8504,7 +8520,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -8515,7 +8531,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Mon",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Mon,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Mon,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8524,7 +8540,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "Tue",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Tue,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Tue,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8533,7 +8549,7 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "Wed",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Wed,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Wed,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8542,7 +8558,7 @@ highchart() %>%
                 lineColor='#00aeef'
                 ) %>%
   hc_add_series(name   = "Thu",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Thu,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Thu,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8551,7 +8567,7 @@ highchart() %>%
                 lineColor='#7f7f7f'
                 ) %>%
   hc_add_series(name   = "Fri",
-                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty == x))$Fri,
+                data   = (volume_trend_specialty_output %>% filter(Campus.Specialty.Group == x))$Fri,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8603,7 +8619,7 @@ reactable(
     wrap = TRUE,
   searchable = TRUE,
 
-  groupBy = "Campus.Specialty",
+  groupBy = "Campus.Specialty.Group",
 
   columnGroups = list(
     colGroup(name = paste0(format(as.Date(start_date), "%b"),"-",format(as.Date(end_date), "%b %Y"), " Visit Volume"), 
@@ -8616,7 +8632,7 @@ reactable(
 
   columns = list(
 
-    Campus.Specialty = colDef(
+    Campus.Specialty.Group = colDef(
       name = "Specialty",
       maxWidth = 250),
     
@@ -8743,7 +8759,7 @@ reactable(
 
 no_show_trend_site_output <- no_show_trend_site_function("ONCOLOGY")
 
-map(unique(no_show_trend_site_output$Campus.Specialty), function(x){
+map(unique(no_show_trend_site_output$Campus.Specialty.Group), function(x){
 highchart() %>%
   hc_yAxis_multiples(
     # list(title = list(text = "Avg Volume per Day"), lineWidth = 3),
@@ -8754,7 +8770,7 @@ highchart() %>%
            # showLastLabel = FALSE, opposite = TRUE)
   ) %>%
   hc_xAxis(title = list(text = ""),
-           categories = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$Appt.MonthYear,
+           categories = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$Appt.MonthYear,
            type = "datetime",
            labels = list(format = '{value:%Y-%m}')
            # dateTimeLabelFormats = list(month = '%Y-%m')
@@ -8765,7 +8781,7 @@ highchart() %>%
   #               color='#212070',
   #               dataLabels = list(enabled = TRUE, format='{point.y}')) %>%
   hc_add_series(name   = "Established",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_Established,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_Established,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8774,7 +8790,7 @@ highchart() %>%
                 lineColor='#212070'
                 ) %>%
   hc_add_series(name   = "New",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate_New,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate_New,
                 type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
@@ -8783,13 +8799,13 @@ highchart() %>%
                 lineColor='#d80b8c'
                 ) %>%
   hc_add_series(name   = "All",
-                data   = (no_show_trend_site_output %>% filter(Campus.Specialty == x))$noShow_rate,
+                data   = (no_show_trend_site_output %>% filter(Campus.Specialty.Group == x))$noShow_rate,
                type = 'line', 
                 # color = '#a5a7a5'
                 marker = list(enabled= TRUE),
-                color='#00aeef',
+                color='#7f7f7f',
                 lineWidth=3,
-                lineColor='#00aeef'
+                lineColor='#7f7f7f'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
   hc_title(text = paste0("ONCOLOGY ", x, " - Avg No Show Rate"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
