@@ -627,85 +627,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -723,7 +723,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -741,7 +741,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -759,7 +759,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -777,7 +777,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -882,8 +882,8 @@ highchart() %>%
                 lineColor='#ffc000'
                 ) %>%
   hc_legend(align = "left", verticalAlign = "top", itemStyle = list(fontFamily ='Calibri',color ='black', fontSize = "14px")) %>%
-  hc_title(text = x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
-  hc_subtitle(text = paste0("Avg Volume by DOW Compared to Daily Avg Weekday Volume",
+  hc_title(text = paste0(x, " - Volume Variance by Day of Week"), align = "left", style = list(fontWeight = 'bold', fontSize = "22px", fontFamily = "Calibri")) %>%
+  hc_subtitle(text = "Avg Volume by DOW Compared to Daily Avg Weekday Volume",
               align = "left", style = list(fontFace = "italic", fontSize = "16px", fontFamily = "Calibri")) %>%
     hc_tooltip(shared = TRUE, borderColor = "black")
   }) %>%
@@ -1369,85 +1369,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -1465,7 +1465,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -1483,7 +1483,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -1501,7 +1501,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -1519,7 +1519,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -2204,85 +2204,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -2300,7 +2300,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -2318,7 +2318,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -2336,7 +2336,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -2354,7 +2354,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3038,85 +3038,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3134,7 +3134,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3152,7 +3152,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3170,7 +3170,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3188,7 +3188,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3873,85 +3873,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3969,7 +3969,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -3987,7 +3987,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4005,7 +4005,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4023,7 +4023,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4708,85 +4708,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4804,7 +4804,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4822,7 +4822,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4840,7 +4840,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -4858,7 +4858,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -5543,85 +5543,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -5639,7 +5639,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -5657,7 +5657,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -5675,7 +5675,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -5693,7 +5693,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -6377,85 +6377,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -6473,7 +6473,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -6491,7 +6491,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -6509,7 +6509,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -6527,7 +6527,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -7212,85 +7212,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -7308,7 +7308,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -7326,7 +7326,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -7344,7 +7344,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -7362,7 +7362,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -7383,7 +7383,6 @@ htmltools::browsable(
   
   )
 )
-
 ```
 <span style='font-size: 14px; font-style: italic; color: black'>*Data includes business days only; excludes `r holidays`</span><br/>
 
@@ -8047,85 +8046,85 @@ htmltools::browsable(
         ),
       Mon_total_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Tue_total_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Wed_total_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Thu_total_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       Fri_total_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#212070", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE)
       ),
       blank = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_avg_day = colDef(
         name = "Mon",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Tue_avg_day = colDef(
         name = "Tue",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Wed_avg_day = colDef(
         name = "Wed",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Thu_avg_day = colDef(
         name = "Thu",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       Fri_avg_day = colDef(
         name = "Fri",
-        minWidth = 100,
+        minWidth = 70,
         headerStyle = list(background = "#7f7f7f", color = "white", fontWeight = "Bold", fontSize = "14px"),
         align = "center",
         format = colFormat(separators = TRUE, digits = 0)
       ),
       blank1 = colDef(
         name = "",
-        minWidth = 30
+        minWidth = 20
       ),
       Mon_var = colDef(
       name = "Mon",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -8143,7 +8142,7 @@ htmltools::browsable(
       ),
       Tue_var = colDef(
       name = "Tue",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -8161,7 +8160,7 @@ htmltools::browsable(
       ),
       Wed_var = colDef(
       name = "Wed",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -8179,7 +8178,7 @@ htmltools::browsable(
       ),
       Thu_var = colDef(
       name = "Thu",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
@@ -8197,7 +8196,7 @@ htmltools::browsable(
       ),
       Fri_var = colDef(
       name = "Fri",
-      minWidth = 100,
+      minWidth = 70,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       align = "center",
       format = colFormat(percent = TRUE),
